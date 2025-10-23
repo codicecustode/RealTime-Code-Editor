@@ -1,0 +1,110 @@
+/* Body and main background */
+.homePageWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Applied the very light, airy blue background */
+    background: #F7FCFF;
+    /* Changed default text color to be visible on light bg (for footer) */
+    color: #0288D1;
+    height: 100vh;
+}
+
+/* The main form card */
+.formWrapper {
+    /* Kept the card white and crisp */
+    background: #FFFFFF;
+    padding: 20px;
+    border-radius: 10px;
+    width: 400px;
+    max-width: 90%;
+    /* Added a subtle shadow to make the white card pop */
+    box-shadow: 0 4px 15px rgba(179, 229, 252, 0.4);
+}
+
+footer {
+    position: fixed;
+    bottom: 0;
+}
+
+/* Footer link */
+footer a {
+    /* Matched footer link to the new blue */
+    color: #0288D1;
+}
+
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Label text: "Paste Invitation ROOM ID" */
+.mainLabel {
+    margin-bottom: 20px;
+    margin-top: 0;
+    /* Applied the clear blue text color */
+    color: #039BE5;
+}
+
+.homePageLogo {
+    height: 80px;
+    margin-bottom: 30px;
+}
+
+/* Input fields: "ROOM ID" and "USERNAME" */
+.inputBox {
+    padding: 10px;
+    border-radius: 5px;
+    outline: none;
+    border: none;
+    margin-bottom: 14px;
+    /* Applied the pale, clear blue background */
+    background: #E3F2FD;
+    font-size: 16px;
+    font-weight: bold;
+    /* Set the text color for typing inside the box */
+    color: #0277BD;
+}
+
+.btn {
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+}
+
+/* "Join" button */
+.joinBtn {
+    /* Applied the bright, vibrant aqua color */
+    background: #4DD0E1;
+    /* Set text to white for contrast */
+    color: #FFFFFF;
+    width: 100px;
+    margin-left: auto;
+}
+
+.joinBtn:hover {
+    /* Added a slightly darker hover state */
+    background: #26C6DA;
+}
+
+/* Added style for the "create new room" link */
+.createInfo {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.createInfo a {
+    /* Applied the clear blue link color */
+    color: #0288D1;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.createInfo a:hover {
+    /* Added a hover effect for the link */
+    text-decoration: underline;
+}
