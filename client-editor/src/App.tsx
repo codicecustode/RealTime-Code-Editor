@@ -11,7 +11,7 @@ function App() {
     <>
       <div>
         <Toaster
-          position="top-right"
+          position="top-center"
           toastOptions={{
             success: {
               iconTheme: {
