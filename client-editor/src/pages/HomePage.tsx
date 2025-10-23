@@ -47,7 +47,7 @@ const Home = () => {
                     src="/code-sync.png"
                     alt="code-sync-logo"
                 />
-                <h4 className="mainLabel">Paste invitation ROOM ID</h4>
+                <h4 className="mainLabel">If You have Invitation Code Paste Else Create New</h4>
                 <div className="inputGroup">
                     <input
                         type="text"
@@ -82,7 +82,7 @@ const Home = () => {
             </div>
             <footer>
                 <h4>
-                    Built with 💛 &nbsp; by &nbsp ;
+                    Built with 💛 &nbsp; by &nbsp;
                     <a href="https://github.com/codicecustode/RealTime-Code-Editor">Aman</a>
                 </h4>
             </footer>
