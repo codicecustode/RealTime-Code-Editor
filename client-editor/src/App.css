@@ -121,6 +121,7 @@ footer a:hover {
     grid-template-columns: 230px 1fr;
     /* Set the background to the airy blue */
     background: #F7FCFF;
+    height: 100vh;
 }
 
 /* Sidebar */
