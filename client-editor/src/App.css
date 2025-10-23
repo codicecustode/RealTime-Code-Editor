@@ -5,7 +5,7 @@
     justify-content: center;
     /* Applied the very light, airy blue background */
     background: #F7FCFF;
-    /* Changed default text color to be visible on light bg (for footer) */
+    /* Default text color for elements like the footer */
     color: #0288D1;
     height: 100vh;
 }
@@ -18,7 +18,7 @@
     border-radius: 10px;
     width: 400px;
     max-width: 90%;
-    /* Added a subtle shadow to make the white card pop */
+    /* Added the subtle blue shadow */
     box-shadow: 0 4px 15px rgba(179, 229, 252, 0.4);
 }
 
@@ -76,8 +76,9 @@ footer a {
     transition: all 0.3s ease-in-out;
 }
 
-/* "Join" button */
-.joinBtn {
+/* "Join" and "Leave" buttons */
+.joinBtn,
+.leaveBtn {
     /* Applied the bright, vibrant aqua color */
     background: #4DD0E1;
     /* Set text to white for contrast */
@@ -86,25 +87,85 @@ footer a {
     margin-left: auto;
 }
 
-.joinBtn:hover {
-    /* Added a slightly darker hover state */
+.joinBtn:hover,
+.leaveBtn:hover {
+    /* Added the slightly darker hover state */
     background: #26C6DA;
 }
 
-/* Added style for the "create new room" link */
 .createInfo {
+    margin: 0 auto;
     margin-top: 20px;
-    text-align: center;
 }
 
-.createInfo a {
+/* "create new room" link */
+.createNewBtn {
     /* Applied the clear blue link color */
     color: #0288D1;
     text-decoration: none;
-    font-weight: bold;
+    /* Matched the border color to the link color */
+    border-bottom: 1px solid #0288D1;
+    transition: all 0.3s ease-in-out;
 }
 
-.createInfo a:hover {
-    /* Added a hover effect for the link */
-    text-decoration: underline;
+.createNewBtn:hover,
+footer a:hover {
+    /* Used a darker blue for hover */
+    color: #01579B;
+    border-color: #01579B;
+}
+
+/* Main wrapper for the editor page */
+.mainWrap {
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    /* Set the background to the airy blue */
+    background: #F7FCFF;
+}
+
+/* Sidebar */
+.aside {
+    /* Set sidebar to white to contrast the background */
+    background: #FFFFFF;
+    padding: 16px;
+    /* Set default text color for the sidebar */
+    color: #039BE5;
+    display: flex;
+    flex-direction: column;
+}
+.asideInner {
+    flex: 1;
+}
+
+.clientsList {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.client {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    font-weight: bold;
+}
+.userName {
+    margin-top: 10px;
+}
+
+/* Logo in the sidebar */
+.logo {
+    /* Used the light input-blue for a subtle border */
+    border-bottom: 1px solid #E3F2FD;
+    padding-bottom: 10px;
+}
+
+.logoImage {
+    height: 60px;
+}
+
+.leaveBtn {
+    width: 100%;
+    margin-top: 20px;
 }
