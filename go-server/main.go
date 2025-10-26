@@ -3,13 +3,20 @@ package main
 import (
 	"log"
 	"net/http"
-	"sync"
+	
 
 	"github.com/gorilla/websocket"
 	
 )
 
+type Message struct {
+	Event string `json: "event"`
+	Data string `json: "data"`
+}
 
+//mu := sync.Mutex
+var clients = make(map[*websocket.Conn] bool)
+var messageChan = make(chan []byte)
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -29,24 +36,58 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 	//always close the connection(Although this line not close instant, it schedule the closing connection)
 	defer conn.Close()
 
-	//send message to the client
-	err = conn.WriteMessage(websocket.TextMessage, []byte("egd"))
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
+	clients[conn] = true
+	messageChan <- []byte("A user joined")
 
-	//read the message from client
-	_, message, err := conn.ReadMessage()
-	if err != nil {
-		log.Fatal(err)
-		return
+	for {
+		//send message to the client
+		// err = conn.WriteMessage(websocket.TextMessage, []byte("egd"))
+		// if err != nil {
+		// 	log.Fatal(err)
+		// 	return
+		// }
+	
+
+		// //read the message from client
+		// _, message, err := conn.ReadMessage()
+		// if err != nil {
+		// 	log.Fatal(err)
+		// 	return
+		// }
+		
+		var message Message
+		err := conn.ReadJSON(&message)
+		if err != nil {
+			log.Fatal(err)
+		}
+		switch message.Event {
+			case "message":
+				messageChan <- []byte (message.Data)
+			case "join":
+				messageChan <- []byte ("A user Joined room")
+		}
 	}
-	log.Printf("Received from client %s", message)
+}
+
+func broadcastMessage(){
+
+	for {
+	// receive the broadcasting message from message channel
+		msg := <- messageChan 
+
+		for client := range clients {
+			err := client.WriteMessage(websocket.TextMessage, msg)
+			if err!= nil{
+				log.Fatal("Erro while writing broadcasting msg.", err)
+				delete(clients, client)
+			}
+		}
+  }
 }
 
 func main() {
 	http.HandleFunc("/ws", handlerConnection)
+	go broadcastMessage()
 	log.Println("Server started on 8080 port")
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
