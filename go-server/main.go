@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -8,9 +9,9 @@ import (
 )
 
 type Message struct {
-	Event string `json: "event"`
-	Data string `json: "data"`
-	RoomId string `json: "roomId"`
+	Event  string `json:"event"`
+	Data   string `json:"data"`
+	RoomId string `json:"roomId"`
 }
 
 // mu := sync.Mutex
@@ -29,6 +30,7 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 	roomId := r.URL.Query().Get("roomId")
 	if roomId == "" {
 		log.Fatal("Room Id is required to connect with Server.")
+		http.Error(w, "Room Id is required", http.StatusBadRequest)
 		return
 	}
 
@@ -37,18 +39,24 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Upgrade",err)
+		log.Println("Upgrade", err)
 		return
 	}
 
 	//always close the connection(Although this line not close instant, it schedule the closing connection)
-	
-	defer conn.Close()
-
+	defer func() {
+		delete(rooms[roomId], conn)
+		if len(rooms[roomId]) == 0 {
+			delete(rooms, roomId)
+			log.Println("Room deleted:", roomId)
+		}
+		messageChan <- Message{Event: "leave", Data: "A user Left", RoomId: roomId}
+		defer conn.Close()
+	}()
 
 	rooms[roomId][conn] = true
 
-	messageChan <- Message { Event: "join", Data: "A user Joined", RoomId: roomId}
+	messageChan <- Message{Event: "join", Data: "A user Joined", RoomId: roomId}
 
 	for {
 		//send message to the client
@@ -65,19 +73,38 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 		// 	return
 		// }
 
-		var message Message
-		err := conn.ReadJSON(&message)
+		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Fatal(err)
 		}
-		switch message.Event {
-		case "message":
-			messageChan <- Message{Event: "message", Data: "Some Message Received", RoomId: roomId}
-		case "join":
-			messageChan <- Message{Event: "join", Data: "A user Joined", RoomId: roomId}
-		case "codeChange":
+
+		switch messageType {
+
+		case websocket.TextMessage:
+			var msg Message
+			if err := json.Unmarshal(message, &msg); err != nil {
+				log.Fatal(err)
+				continue
+			}
+
+			messageChan <- msg
+
+		case websocket.BinaryMessage:
+			for client := range rooms[roomId] {
+
+				if conn != client {
+					err := client.WriteMessage(websocket.BinaryMessage, message)
+					if err != nil {
+						log.Println("Write error:", err)
+						client.Close()
+						delete(rooms[roomId], client)
+					}
+				}
+
+			}
 
 		}
+
 	}
 }
 
@@ -96,9 +123,9 @@ func broadcastMessage() {
 		// }
 
 		msg := <-messageChan
-		roomId = msg.roomId
+		roomId := msg.RoomId
 		for client := range rooms[roomId] {
-			err := client.WriteMessage(websocket.TextMessage,msg.data)
+			err := client.WriteMessage(websocket.TextMessage, []byte(msg.Data))
 			if err != nil {
 				log.Fatal(err)
 				delete(rooms[roomId], client)
