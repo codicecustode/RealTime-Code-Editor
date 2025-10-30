@@ -56,7 +56,7 @@ const EditorPage = () => {
         </button>
       </div>
       <div className="editorWrap">
-        <Editor
+        <Editor roomId={roomId!}
         />
       </div>
     </div>
