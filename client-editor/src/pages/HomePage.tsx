@@ -16,7 +16,7 @@ const Home = () => {
     };
 
     const joinRoom = () => {
-        if (!roomId ){
+        if (!roomId) {
             toast.error('Room ID is required');
             return;
         }
@@ -34,7 +34,7 @@ const Home = () => {
         });
     };
 
-    const handleInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleInputEnter = (e: React.KeyboardEvent<HTMLInputElement | HTMLButtonElement>) => {
         if (e.code === 'Enter') {
             joinRoom();
         }
@@ -65,7 +65,7 @@ const Home = () => {
                         value={username}
                         onKeyUp={handleInputEnter}
                     />
-                    <button className="btn joinBtn" onClick={joinRoom}>
+                    <button className="btn joinBtn" onClick={joinRoom} onKeyUp={handleInputEnter}>
                         Join
                     </button>
                     <span className="createInfo">
