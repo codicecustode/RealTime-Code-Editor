@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-
+import toast from 'react-hot-toast';
 import { basicSetup } from "codemirror"
 import { EditorView } from "@codemirror/view"
 // import {
@@ -11,7 +11,8 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { yCollab } from "y-codemirror.next";
 
-const Editor = ({roomId}) => {
+const Editor = ({ roomId, onProviderReady }: { roomId: string, onProviderReady: (args: { provider: WebsocketProvider}) => void
+ }) => {
 
     const editorRef = useRef<HTMLDivElement>(null);
 
@@ -22,6 +23,26 @@ const Editor = ({roomId}) => {
         const ytext = ydoc.getText("codemirror");
 
         const provider = new WebsocketProvider("ws://localhost:8080/ws", roomId, ydoc);
+
+        let ws = provider.ws || null;
+        provider.on("status", (event: { status: string }) => {
+            console.log("WebSocket Provider status:", event.status);
+            if (event.status === "connected") {
+                onProviderReady({
+                    provider,
+                });
+            }
+        })
+
+        console.log("WebSocket connected:", provider);
+
+        if (ws) {
+            ws.onmessage = (event: MessageEvent) => {
+                console.log("WebSocket message received in Editor:", event.data);
+                toast.success("A user has joined the room!");
+                
+            }
+        }
 
         const awareness = provider.awareness;
 
@@ -35,8 +56,6 @@ const Editor = ({roomId}) => {
             ],
             parent: editorRef.current!,
         });
-
-
 
         return () => {
             editor.destroy();
