@@ -56,23 +56,9 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 
 	rooms[roomId][conn] = true
 
-	messageChan <- Message{Event: "join", Data: "A user Joined", RoomId: roomId}
+	messageChan <- Message{ Event: "join", Data: "A user Joined", RoomId: roomId }
 
 	for {
-		//send message to the client
-		// err = conn.WriteMessage(websocket.TextMessage, []byte("egd"))
-		// if err != nil {
-		// 	log.Fatal(err)
-		// 	return
-		// }
-
-		// //read the message from client
-		// _, message, err := conn.ReadMessage()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// 	return
-		// }
-
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Fatal(err)
@@ -100,28 +86,14 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 						delete(rooms[roomId], client)
 					}
 				}
-
 			}
-
 		}
-
 	}
 }
 
 func broadcastMessage() {
 
 	for {
-		// receive the broadcasting message from message channel
-		// msg := <-messageChan
-
-		// for client := range clients {
-		// 	err := client.WriteMessage(websocket.TextMessage, msg)
-		// 	if err != nil {
-		// 		log.Fatal("Erro while writing broadcasting msg.", err)
-		// 		delete(clients, client)
-		// 	}
-		// }
-
 		msg := <-messageChan
 		roomId := msg.RoomId
 		for client := range rooms[roomId] {
