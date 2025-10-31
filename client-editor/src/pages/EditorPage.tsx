@@ -4,12 +4,14 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Editor from '../components/Editor';
 import Actions from '../../Actions';
+import type { WebsocketProvider } from 'y-websocket';
 const EditorPage = () => {
 
   const location = useLocation();
   const { roomId } = useParams();
   const reactNavigator = useNavigate();
   //const [clients, setClients] = useState([]);
+  const [provider, setProvider] = useState<any>(null);
   const clients = [
     { username: 'User1' },
     { username: 'User2' },
@@ -27,7 +29,16 @@ const EditorPage = () => {
   };
 
   const handleLeaveRoom = () => {
+    toast.success('You have left the room');
+    //also send to server that user has left
+    provider?.ws.send(
+      JSON.stringify({ event: Actions.DISCONNECTED, roomId, data: "User Left" })
+    );
     reactNavigator('/');
+  };
+
+  const handleProviderReady = (args: { provider: WebsocketProvider }) => {
+    setProvider(args.provider);
   };
 
   return (
@@ -56,7 +67,7 @@ const EditorPage = () => {
         </button>
       </div>
       <div className="editorWrap">
-        <Editor roomId={roomId!}
+        <Editor roomId={roomId!} onProviderReady={handleProviderReady}
         />
       </div>
     </div>
