@@ -2,10 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/websocket"
+	//"strings"
+	"sync"
 )
 
 type Message struct {
@@ -14,7 +17,7 @@ type Message struct {
 	RoomId string `json:"roomId"`
 }
 
-// mu := sync.Mutex
+var mu sync.Mutex
 var messageChan = make(chan Message)
 var rooms = make(map[string]map[*websocket.Conn]bool)
 
@@ -27,41 +30,56 @@ var upgrader = websocket.Upgrader{
 }
 
 func handlerConnection(w http.ResponseWriter, r *http.Request) {
-	roomId := r.URL.Query().Get("roomId")
+	// roomId := strings.TrimPrefix(r.URL.Path, "/ws/")
+	// fmt.Println(roomId)
+	vars := mux.Vars(r)
+	roomId := vars["roomId"]
+	fmt.Println(roomId)
 	if roomId == "" {
-		log.Fatal("Room Id is required to connect with Server.")
+		log.Println("Room Id is required to connect with Server.")
 		http.Error(w, "Room Id is required", http.StatusBadRequest)
 		return
 	}
 
+	mu.Lock()
 	if _, exist := rooms[roomId]; !exist {
+		fmt.Println("RoomId is not exist. Creating New...")
 		rooms[roomId] = make(map[*websocket.Conn]bool)
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("Upgrade", err)
+		//conn.Close()
 		return
 	}
 
-	//always close the connection(Although this line not close instant, it schedule the closing connection)
+	rooms[roomId][conn] = true
+	mu.Unlock()
+
+	messageChan <- Message{Event: "join", Data: "A user Joined", RoomId: roomId}
+
 	defer func() {
+		mu.Lock()
 		delete(rooms[roomId], conn)
 		if len(rooms[roomId]) == 0 {
 			delete(rooms, roomId)
 			log.Println("Room deleted:", roomId)
 		}
+		mu.Unlock()
+
+		conn.Close()
 		messageChan <- Message{Event: "leave", Data: "A user Left", RoomId: roomId}
-		defer conn.Close()
 	}()
-
-	rooms[roomId][conn] = true
-
-	messageChan <- Message{ Event: "join", Data: "A user Joined", RoomId: roomId }
 
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			delete(rooms[roomId], conn)
+			if len(rooms[roomId]) == 0 {
+				delete(rooms, roomId)
+			}
+			break
 		}
 
 		switch messageType {
@@ -69,24 +87,31 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 		case websocket.TextMessage:
 			var msg Message
 			if err := json.Unmarshal(message, &msg); err != nil {
-				log.Fatal(err)
-				continue
+				log.Println(err)
+				break
 			}
 
 			messageChan <- msg
 
 		case websocket.BinaryMessage:
+			mu.Lock()
 			for client := range rooms[roomId] {
 
 				if conn != client {
+
 					err := client.WriteMessage(websocket.BinaryMessage, message)
+
 					if err != nil {
 						log.Println("Write error:", err)
 						client.Close()
 						delete(rooms[roomId], client)
+						if len(rooms[roomId]) == 0 {
+							delete(rooms, roomId)
+						}
 					}
 				}
 			}
+			mu.Unlock()
 		}
 	}
 }
@@ -96,25 +121,34 @@ func broadcastMessage() {
 	for {
 		msg := <-messageChan
 		roomId := msg.RoomId
-		for client := range rooms[roomId] {
+		mu.Lock()
+		clients := rooms[roomId]
+		mu.Unlock()
+		for client := range clients {
+
 			err := client.WriteMessage(websocket.TextMessage, []byte(msg.Data))
+
 			if err != nil {
-				log.Fatal(err)
+				log.Println(err)
+				client.Close()
 				delete(rooms[roomId], client)
+				if len(rooms[roomId]) == 0 {
+					delete(rooms, roomId)
+				}
 			}
 		}
 	}
 }
 
 func main() {
-	http.HandleFunc("/ws", handlerConnection)
+	r := mux.NewRouter()
+	r.HandleFunc("/ws/{roomId}", handlerConnection)
 
-	//use goroutine for concurrency
+	// Start broadcaster
 	go broadcastMessage()
 
-	log.Println("Server started on 8080 port")
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		log.Fatal("Error in Listen and Serve:", err)
+	log.Println("Server started on port 3000")
+	if err := http.ListenAndServe(":3000", r); err != nil {
+		log.Println("ListenAndServe error:", err)
 	}
 }
