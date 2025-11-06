@@ -1,26 +1,39 @@
-
-import { useState } from 'react';
+//EditorPage.tsx
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Editor from '../components/Editor';
 import Actions from '../../Actions';
-import type { WebsocketProvider } from 'y-websocket';
+
+
 const EditorPage = () => {
 
   const location = useLocation();
   const { roomId } = useParams();
+  const socketref = useRef<WebSocket | null>(null);
   const reactNavigator = useNavigate();
-  //const [clients, setClients] = useState([]);
-  const [provider, setProvider] = useState<any>(null);
-  const clients = [
-    { username: 'User1' },
-    { username: 'User2' },
-    { username: 'User3' },
-  ];
+  const [clients, setClients] = useState<{ username: string }[]>([]);
+
+  useEffect(() => {
+    socketref.current = new WebSocket('ws://localhost:5000');
+    setClients((prev) => {
+      const existing = prev.some(client => client.username === (location.state as any).username);
+      if (!existing) {
+        return [...prev, { username: (location.state as any).username }];
+      }
+      return prev;
+    })
+
+  }, []);
+
+
+
+
 
   const handleCopyRoomId = async () => {
     try {
-      await navigator.clipboard.writeText(roomId!);
+      if (!roomId) return toast.error("Room ID missing");
+      await navigator.clipboard.writeText(roomId);
       toast.success('ROOM ID has been copied to your clipboard');
     } catch (err) {
       console.error('Failed to copy ROOM ID:', err);
@@ -30,15 +43,7 @@ const EditorPage = () => {
 
   const handleLeaveRoom = () => {
     toast.success('You have left the room');
-    //also send to server that user has left
-    provider?.ws.send(
-      JSON.stringify({ event: Actions.DISCONNECTED, roomId, data: "User Left" })
-    );
     reactNavigator('/');
-  };
-
-  const handleProviderReady = (args: { provider: WebsocketProvider }) => {
-    setProvider(args.provider);
   };
 
   return (
@@ -55,7 +60,7 @@ const EditorPage = () => {
           <h3>Connected Forks</h3>
           <div className="clientsList">
             {clients.map((client) => (
-              <h4>{client.username}</h4>
+              <h4 key={client.username}>{client.username}</h4>
             ))}
           </div>
         </div>
@@ -67,7 +72,7 @@ const EditorPage = () => {
         </button>
       </div>
       <div className="editorWrap">
-        <Editor roomId={roomId!} onProviderReady={handleProviderReady}
+        <Editor roomId={roomId!} socket={socketref.current}
         />
       </div>
     </div>
