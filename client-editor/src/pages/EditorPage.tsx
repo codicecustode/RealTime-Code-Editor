@@ -10,12 +10,12 @@ const EditorPage = () => {
 
   const location = useLocation();
   const { roomId } = useParams();
-  const socketref = useRef<WebSocket | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
   const reactNavigator = useNavigate();
   const [clients, setClients] = useState<{ username: string }[]>([]);
 
   useEffect(() => {
-    socketref.current = new WebSocket('ws://localhost:5000');
+    socketRef.current = new WebSocket('ws://localhost:5000');
     setClients((prev) => {
       const existing = prev.some(client => client.username === (location.state as any).username);
       if (!existing) {
@@ -72,8 +72,11 @@ const EditorPage = () => {
         </button>
       </div>
       <div className="editorWrap">
-        <Editor roomId={roomId!} socket={socketref.current}
-        />
+        {
+          socketRef.current && (
+            <Editor roomId={roomId!} socket={socketRef.current} />
+          )
+        }
       </div>
     </div>
   );
