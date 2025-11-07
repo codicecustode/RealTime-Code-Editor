@@ -70,14 +70,15 @@ const EditorPage = () => {
       console.log('WebSocket connection closed');
       toast.error('Disconnected from the server');
       //sednd leave notification
+
+    };
+
+    return () => {
       socketRef.current?.send(JSON.stringify({
         event: "LEAVE",
         roomId,
         username: (location.state as any).username,
       }));
-    };
-
-    return () => {
       socketRef.current?.close();
 
     };
