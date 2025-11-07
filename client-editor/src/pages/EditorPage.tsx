@@ -24,14 +24,7 @@ const EditorPage = () => {
     socketRef.current.onopen = () => {
       console.log('WebSocket connection established');
       toast.success('Connected to the server');
-
-      // Notify server about joining
-      setClients((prev) => {
-        if (!prev.find(c => c.username === (location.state as any).username)) {
-          return [...prev, { username: (location.state as any).username }];
-        }
-        return prev;
-      });
+      
       socketRef.current?.send(JSON.stringify({
         event: "JOINED",
         roomId,
@@ -44,23 +37,24 @@ const EditorPage = () => {
       console.log("Received message from server:", data);
       switch (data.event) {
         case "JOINED": {
-          console.log("Handling JOINED event in client");
-          console.log("location state username:", (location.state as any).username);
-          console.log("data username:", data.data.username);
-          if (data.data.username !== (location.state as any).username) {
+          const joinedUser = data.data.username;
+          const myUsername = (location.state as any).username;
+          const clientsList = (data.clients || []).map((c: any) =>
+            typeof c === "string" ? { username: c } : c
+          );
 
-            console.log("You joined the room");
-            console.log("Clients list from server:", data.data.data.clients);
-            setClients(data.data.data.clients);
-            console.log("Current clients:", clients);
-            toast.success(`${data.username} joined the room.`);
+          setClients(clientsList); // ✅ Always update
+          if (joinedUser !== myUsername) {
+            toast.success(`${joinedUser} joined the room.`);
           }
           break;
         }
         case "LEAVE": {
-          setClients(data.data.clients);
-          console.log("Current clients after leave:", clients);
-          toast.success(`${data.username} left the room.`);
+          const clientsList = (data.data.clients || []).map((c: any) =>
+            typeof c === "string" ? { username: c } : c
+          );
+          setClients(clientsList);
+          toast.success(`${data.data.username} left the room.`);
           break;
         }
       }
