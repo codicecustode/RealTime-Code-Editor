@@ -15,14 +15,72 @@ const EditorPage = () => {
   const [clients, setClients] = useState<{ username: string }[]>([]);
 
   useEffect(() => {
+    if (!location.state || !(location.state as any).username) {
+      toast.error('Username is required. Redirecting to Home Page');
+      reactNavigator('/');
+      return;
+    }
     socketRef.current = new WebSocket('ws://localhost:5000');
-    setClients((prev) => {
-      const existing = prev.some(client => client.username === (location.state as any).username);
-      if (!existing) {
-        return [...prev, { username: (location.state as any).username }];
+    socketRef.current.onopen = () => {
+      console.log('WebSocket connection established');
+      toast.success('Connected to the server');
+
+      // Notify server about joining
+      setClients((prev) => {
+        if (!prev.find(c => c.username === (location.state as any).username)) {
+          return [...prev, { username: (location.state as any).username }];
+        }
+        return prev;
+      });
+      socketRef.current?.send(JSON.stringify({
+        event: "JOINED",
+        roomId,
+        username: (location.state as any).username,
+      }));
+    };
+
+    socketRef.current.onmessage = (message) => {
+      const data = JSON.parse(message.data);
+      console.log("Received message from server:", data);
+      switch (data.event) {
+        case "JOINED": {
+          console.log("Handling JOINED event in client");
+          console.log("location state username:", (location.state as any).username);
+          console.log("data username:", data.data.username);
+          if (data.data.username !== (location.state as any).username) {
+
+            console.log("You joined the room");
+            console.log("Clients list from server:", data.data.data.clients);
+            setClients(data.data.data.clients);
+            console.log("Current clients:", clients);
+            toast.success(`${data.username} joined the room.`);
+          }
+          break;
+        }
+        case "LEAVE": {
+          setClients(data.data.clients);
+          console.log("Current clients after leave:", clients);
+          toast.success(`${data.username} left the room.`);
+          break;
+        }
       }
-      return prev;
-    })
+    }
+
+    socketRef.current.onclose = () => {
+      console.log('WebSocket connection closed');
+      toast.error('Disconnected from the server');
+      //sednd leave notification
+      socketRef.current?.send(JSON.stringify({
+        event: "LEAVE",
+        roomId,
+        username: (location.state as any).username,
+      }));
+    };
+
+    return () => {
+      socketRef.current?.close();
+
+    };
 
   }, []);
 
