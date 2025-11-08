@@ -35,9 +35,9 @@ const EditorPage = () => {
     };
 
     socket.onmessage = (message) => {
-      const data = JSON.parse(message.data);
+      const { event, data } = JSON.parse(message.data);
 
-      switch (data.event) {
+      switch (event) {
         case "JOINED": {
           const joinedUser = data.username;
           const clientsList = (data.clients || []).map((c: any) =>
