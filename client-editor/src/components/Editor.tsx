@@ -1,72 +1,85 @@
 import { useRef, useEffect } from "react";
-import toast from 'react-hot-toast';
-import { basicSetup } from "codemirror"
-import { EditorView } from "@codemirror/view"
-// import {
-//     defaultHighlightStyle, syntaxHighlighting
-// } from "@codemirror/language"
-import { javascript } from "@codemirror/lang-javascript"; // Any language support you need
-import { vscodeDark } from "@uiw/codemirror-theme-vscode"; // VS Code dark theme
-import * as Y from "yjs";
-import { WebsocketProvider } from "y-websocket";
-import { yCollab } from "y-codemirror.next";
+import { basicSetup } from "codemirror";
+import { EditorView } from "@codemirror/view";
+import { javascript } from "@codemirror/lang-javascript";
+import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 
-const Editor = ({ roomId, onProviderReady }: { roomId: string, onProviderReady: (args: { provider: WebsocketProvider}) => void
- }) => {
+const CollaborationEditor = ({
+  socket,
+  roomId,
+}: {
+  socket: WebSocket;
+  roomId: string;
+}) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const editorInstanceRef = useRef<EditorView | null>(null);
 
-    const editorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!editorRef.current) return;
+    const fullHeightTheme = EditorView.theme({
+      "&": {
+        height: "100vh",        // Full viewport height
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+      },
+      ".cm-scroller": {
+        flexGrow: 1, 
+      }
+    });
+    const editor = new EditorView({
+      doc: "// Start coding...",
+      extensions: [
+        basicSetup,
+        javascript(),
+        vscodeDark,
+        fullHeightTheme,
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            const code = update.state.doc.toString();
+            socket.send(
+              JSON.stringify({
+                event: "EDITOR_CHANGE",
+                roomId,
+                code,
+              })
+            );
+          }
+        }),
+      ],
+      parent: editorRef.current,
+    });
 
-    useEffect(() => {
+    editorInstanceRef.current = editor;
+    return () => editor.destroy();
+  }, []);
 
-        const ydoc = new Y.Doc();
-
-        const ytext = ydoc.getText("codemirror");
-
-        const provider = new WebsocketProvider("ws://localhost:8080/ws", roomId, ydoc);
-
-        let ws = provider.ws || null;
-        provider.on("status", (event: { status: string }) => {
-            console.log("WebSocket Provider status:", event.status);
-            if (event.status === "connected") {
-                onProviderReady({
-                    provider,
-                });
-            }
-        })
-
-        console.log("WebSocket connected:", provider);
-
-        if (ws) {
-            ws.onmessage = (event: MessageEvent) => {
-                console.log("WebSocket message received in Editor:", event.data);
-                toast.success("A user has joined the room!");
-                
-            }
+  // Listen for incoming code changes
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === "EDITOR_CHANGE" && data.data.roomId === roomId) {
+          console.log("Received code change:", data);
+          const code = data.data.code;
+          const editor = editorInstanceRef.current;
+          if (editor && editor.state.doc.toString() !== code) {
+            console.log("Updating editor content");
+            editor.dispatch({
+              changes: { from: 0, to: editor.state.doc.length, insert: code },
+            });
+          }
         }
+      } catch (err) {
+        console.error("Invalid WS message:", err);
+      }
+    };
 
-        const awareness = provider.awareness;
+    socket.addEventListener("message", handleMessage);
+    return () => socket.removeEventListener("message", handleMessage);
+  }, [socket, roomId]);
 
-        const editor = new EditorView({
-            doc: "// Happy Coding!",
-            extensions: [
-                basicSetup,
-                javascript(),      // Add languages as required
-                vscodeDark,        // The VS Code theme extension
-                yCollab(ytext, awareness), // Yjs collaboration extension
-            ],
-            parent: editorRef.current!,
-        });
+  return <div ref={editorRef} className="editor"></div>;
+};
 
-        return () => {
-            editor.destroy();
-            provider.destroy();
-            ydoc.destroy();
-        }
-    }, []);
-
-
-    return (
-        <div ref={editorRef} className="editor"></div>
-    )
-}
-export default Editor;
+export default CollaborationEditor;
