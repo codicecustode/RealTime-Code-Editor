@@ -1,4 +1,10 @@
 /* Body and main background */
+body, html, #root {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
 .homePageWrapper {
     display: flex;
     align-items: center;
