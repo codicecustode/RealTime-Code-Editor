@@ -132,8 +132,8 @@ const EditorPage = () => {
       </div>
 
       <div className="editorWrap">
-        {socketRef.current && (
-          <CollaborationEditor roomId={roomId!} socket={socketRef.current} />
+        {socketRef.current && usernameRef.current && (
+          <CollaborationEditor roomId={roomId!} socket={socketRef.current} username={usernameRef.current} />
         )}
       </div>
     </div>
