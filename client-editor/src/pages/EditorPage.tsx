@@ -7,11 +7,13 @@ const EditorPage = () => {
   const location = useLocation();
   const { roomId } = useParams();
   const socketRef = useRef<WebSocket | null>(null);
+  const usernameRef = useRef<string | null>(null);
   const reactNavigator = useNavigate();
   const [clients, setClients] = useState<{ username: string }[]>([]);
 
   useEffect(() => {
     const username = (location.state as any)?.username;
+    usernameRef.current = username;
     if (!username) {
       toast.error("Username required. Redirecting...");
       reactNavigator("/");
@@ -81,7 +83,7 @@ const EditorPage = () => {
       }
       socket.close();
     };
-  }, []);
+  }, [socketRef.current, roomId]);
 
   useEffect(() => {
     console.log("👥 Clients:", clients);
@@ -95,6 +97,13 @@ const EditorPage = () => {
 
   const handleLeaveRoom = () => {
     toast.success("You left the room");
+    socketRef.current?.send(
+      JSON.stringify({
+        event: "LEAVE",
+        roomId,
+        username: usernameRef.current,
+      })
+    );
     reactNavigator("/");
   };
 
