@@ -3,6 +3,10 @@ import { basicSetup } from "codemirror";
 import { EditorView } from "@codemirror/view";
 import { javascript } from "@codemirror/lang-javascript";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
+import { Annotation } from "@codemirror/state";
+
+// This creates a unique "tag" we can attach to changes
+const fromServer = Annotation.define<boolean>();
 
 const CollaborationEditor = ({
   socket,
@@ -37,6 +41,16 @@ const CollaborationEditor = ({
         vscodeDark,
         fullHeightTheme,
         EditorView.updateListener.of((update) => {
+          if (!update.docChanged) {
+            return;
+          }
+          const allFromServer = update.transactions.every(
+            (tr) => !tr.docChanged || tr.annotation(fromServer)
+          );
+          if (allFromServer) {
+            // Change originated from server, do not broadcast
+            return;
+          }
           if (update.docChanged) {
             const code = update.state.doc.toString();
             socket.send(
@@ -63,13 +77,14 @@ const CollaborationEditor = ({
       try {
         const { event, data } = JSON.parse(e.data);
         if (username !== data.username && event === "EDITOR_CHANGE" && data.roomId === roomId) {
-          
+
           const code = data.code;
           const editor = editorInstanceRef.current;
           if (editor && editor.state.doc.toString() !== code) {
             console.log("Updating editor content");
             editor.dispatch({
               changes: { from: 0, to: editor.state.doc.length, insert: code },
+              annotations: fromServer.of(true),
             });
           }
         }
