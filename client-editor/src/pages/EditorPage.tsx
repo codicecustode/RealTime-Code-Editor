@@ -1,13 +1,9 @@
-//EditorPage.tsx
-import { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import Editor from '../components/Editor';
-import Actions from '../../Actions';
-
+import { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import CollaborationEditor from "../components/Editor";
 
 const EditorPage = () => {
-
   const location = useLocation();
   const { roomId } = useParams();
   const socketRef = useRef<WebSocket | null>(null);
@@ -15,88 +11,91 @@ const EditorPage = () => {
   const [clients, setClients] = useState<{ username: string }[]>([]);
 
   useEffect(() => {
-    if (!location.state || !(location.state as any).username) {
-      toast.error('Username is required. Redirecting to Home Page');
-      reactNavigator('/');
+    const username = (location.state as any)?.username;
+    if (!username) {
+      toast.error("Username required. Redirecting...");
+      reactNavigator("/");
       return;
     }
-    socketRef.current = new WebSocket('ws://localhost:5000');
-    socketRef.current.onopen = () => {
-      console.log('WebSocket connection established');
-      toast.success('Connected to the server');
-      
-      socketRef.current?.send(JSON.stringify({
-        event: "JOINED",
-        roomId,
-        username: (location.state as any).username,
-      }));
+
+    const socket = new WebSocket("ws://localhost:5000");
+    socketRef.current = socket;
+
+    socket.onopen = () => {
+      console.log("✅ WebSocket connected");
+      toast.success("Connected to the server");
+
+      socket.send(
+        JSON.stringify({
+          event: "JOINED",
+          roomId,
+          username,
+        })
+      );
     };
 
-    socketRef.current.onmessage = (message) => {
+    socket.onmessage = (message) => {
       const data = JSON.parse(message.data);
-      console.log("Received message from server:", data);
+
       switch (data.event) {
         case "JOINED": {
-          const joinedUser = data.data.username;
-          const myUsername = (location.state as any).username;
+          const joinedUser = data.username;
           const clientsList = (data.clients || []).map((c: any) =>
             typeof c === "string" ? { username: c } : c
           );
-
-          setClients(clientsList); // ✅ Always update
-          if (joinedUser !== myUsername) {
+          setClients(clientsList);
+          if (joinedUser !== username) {
             toast.success(`${joinedUser} joined the room.`);
           }
           break;
         }
+
         case "LEAVE": {
-          const clientsList = (data.data.clients || []).map((c: any) =>
+          const clientsList = (data.clients || []).map((c: any) =>
             typeof c === "string" ? { username: c } : c
           );
           setClients(clientsList);
-          toast.success(`${data.data.username} left the room.`);
+          toast.success(`${data.username} left the room.`);
           break;
         }
+
+        default:
+          console.log("⚠️ Unknown event:", data.event);
       }
-    }
-
-    socketRef.current.onclose = () => {
-      console.log('WebSocket connection closed');
-      toast.error('Disconnected from the server');
-      //sednd leave notification
-
     };
 
+    socket.onclose = () => {
+      toast.error("Disconnected from server");
+    };
+
+    // Cleanup on unmount
     return () => {
-      socketRef.current?.send(JSON.stringify({
-        event: "LEAVE",
-        roomId,
-        username: (location.state as any).username,
-      }));
-      socketRef.current?.close();
-
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(
+          JSON.stringify({
+            event: "LEAVE",
+            roomId,
+            username,
+          })
+        );
+      }
+      socket.close();
     };
-
   }, []);
 
-
-
-
+  useEffect(() => {
+    console.log("👥 Clients:", clients);
+  }, [clients]);
 
   const handleCopyRoomId = async () => {
-    try {
-      if (!roomId) return toast.error("Room ID missing");
-      await navigator.clipboard.writeText(roomId);
-      toast.success('ROOM ID has been copied to your clipboard');
-    } catch (err) {
-      console.error('Failed to copy ROOM ID:', err);
-      toast.error('Could not copy ROOM ID');
-    }
+    if (!roomId) return toast.error("Missing Room ID");
+    await navigator.clipboard.writeText(roomId);
+    toast.success("Room ID copied");
   };
 
   const handleLeaveRoom = () => {
-    toast.success('You have left the room');
-    reactNavigator('/');
+    toast.success("You left the room");
+    reactNavigator("/");
   };
 
   return (
@@ -104,13 +103,9 @@ const EditorPage = () => {
       <div className="aside">
         <div className="asideInner">
           <div className="logo">
-            <img
-              className="logoImage"
-              src="/code-sync.png"
-              alt="logo"
-            />
+            <img className="logoImage" src="/code-sync.png" alt="logo" />
           </div>
-          <h3>Connected Forks</h3>
+          <h3>Connected Users</h3>
           <div className="clientsList">
             {clients.map((client) => (
               <h4 key={client.username}>{client.username}</h4>
@@ -118,22 +113,20 @@ const EditorPage = () => {
           </div>
         </div>
         <button className="btn copyBtn" onClick={handleCopyRoomId}>
-          Copy ROOM ID
+          Copy Room ID
         </button>
         <button className="btn leaveBtn" onClick={handleLeaveRoom}>
-          Leave
+          Leave Room
         </button>
       </div>
+
       <div className="editorWrap">
-        {
-          socketRef.current && (
-            <Editor roomId={roomId!} socket={socketRef.current} />
-          )
-        }
+        {socketRef.current && (
+          <CollaborationEditor roomId={roomId!} socket={socketRef.current} />
+        )}
       </div>
     </div>
   );
 };
-
 
 export default EditorPage;
