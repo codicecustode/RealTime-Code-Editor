@@ -58,6 +58,7 @@ wss.on("connection", (ws: WebSocket) => {
 
     const { event, roomId, username, code } = parsed;
     logger.debug(`Received event ${event} from ${username || "unknown"}`);
+    logger.debug(`Received data: ${parsed}`);
 
     switch (event) {
       
@@ -135,7 +136,7 @@ wss.on("connection", (ws: WebSocket) => {
 
 
 // Start Server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   logger.info(`🚀 Server listening on port ${PORT}`);
 });
