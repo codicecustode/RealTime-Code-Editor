@@ -20,7 +20,7 @@ const EditorPage = () => {
       return;
     }
 
-    const socket = new WebSocket("ws://localhost:5000");
+    const socket = new WebSocket("ws://localhost:3000");
     socketRef.current = socket;
 
     socket.onopen = () => {
@@ -57,7 +57,9 @@ const EditorPage = () => {
             typeof c === "string" ? { username: c } : c
           );
           setClients(clientsList);
-          toast.success(`${data.username} left the room.`);
+          if (data.username !== username) {
+            toast.success(`${data.username} left the room.`);
+          }
           break;
         }
 
@@ -83,7 +85,7 @@ const EditorPage = () => {
       }
       socket.close();
     };
-  }, [socketRef.current, roomId]);
+  }, []);
 
   useEffect(() => {
     console.log("👥 Clients:", clients);
