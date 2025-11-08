@@ -7,9 +7,11 @@ import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 const CollaborationEditor = ({
   socket,
   roomId,
+  username
 }: {
   socket: WebSocket;
   roomId: string;
+  username: string;
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const editorInstanceRef = useRef<EditorView | null>(null);
@@ -24,7 +26,7 @@ const CollaborationEditor = ({
         flexDirection: "column",
       },
       ".cm-scroller": {
-        flexGrow: 1, 
+        flexGrow: 1,
       }
     });
     const editor = new EditorView({
@@ -42,6 +44,7 @@ const CollaborationEditor = ({
                 event: "EDITOR_CHANGE",
                 roomId,
                 code,
+                username,
               })
             );
           }
@@ -56,12 +59,12 @@ const CollaborationEditor = ({
 
   // Listen for incoming code changes
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = (e: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data);
-        if (data.event === "EDITOR_CHANGE" && data.data.roomId === roomId) {
-          console.log("Received code change:", data);
-          const code = data.data.code;
+        const { event, data } = JSON.parse(e.data);
+        if (username !== data.username && event === "EDITOR_CHANGE" && data.roomId === roomId) {
+          
+          const code = data.code;
           const editor = editorInstanceRef.current;
           if (editor && editor.state.doc.toString() !== code) {
             console.log("Updating editor content");
