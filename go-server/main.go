@@ -78,33 +78,72 @@ func getClientByRoomId(roomId string) []map[string]string {
 }
 
 func handlerConnection(w http.ResponseWriter, r *http.Request) {
-	// roomId := strings.TrimPrefix(r.URL.Path, "/ws/")
-	// fmt.Println(roomId)
+
 	vars := mux.Vars(r)
 	roomId := vars["roomId"]
-	fmt.Println(roomId)
+	fmt.Println("RoomId------>",roomId)
+
 	if roomId == "" {
 		log.Println("Room Id is required to connect with Server.")
 		http.Error(w, "Room Id is required", http.StatusBadRequest)
 		return
 	}
 
-	mu.Lock()
-	if _, exist := rooms[roomId]; !exist {
-		fmt.Println("RoomId is not exist. Creating New...")
-		rooms[roomId] = make(map[*websocket.Conn]bool)
-	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("Upgrade", err)
-		//conn.Close()
+		conn.Close()
 		return
 	}
 
-	rooms[roomId][conn] = true
+	//wait untill first message and fisrt message should be join 
+	_, message, err := conn.ReadMessage()
+	if err != nil{
+		log.Println("Read Error (pre-join):", err)
+		conn.Close()
+		return
+	}
+
+	var msg IncomingMessage
+	if err := json.Unmarshal(message, &msg); err != nil {
+		log.Println("Unmarshal Error (pre-join):", err)
+		conn.Close()
+		return
+	}
+
+	if msg.Event != "JOINED" || msg.Username != "" || msg.RoomId != ""{
+		log.Printf("Invalid first message: Event=%s, User=%s, Room=%s", msg.Event, msg.Username, msg.RoomId)
+		conn.Close()
+		return
+	}
+
+	//Create the client struct and add them to the room
+	client := &ClientInfo{
+		Username: msg.Username,
+		Conn: conn,
+	}
+
+	//apply lock so that not two people create same room
+	mu.Lock()
+	if _, exist := rooms[msg.RoomId]; !exist {
+		rooms[msg.RoomId] = make(map[*ClientInfo]bool)
+	}
+	rooms[msg.RoomId][client] = true
+	//get the client while lock applied
+	clientList := getClientById(msg.RoomId)
 	mu.Unlock()
 
-	messageChan <- Message{Event: "join", Data: "A user Joined", RoomId: roomId}
+	log.Printf("✅ %s joined room %s\n", client.Username, roomId)
+
+	// Send the "JOINED" event to the broadcast channel
+	messageChan <- BroadcastData{
+		Event: "JOINED",
+		Data: JoinData{
+			Username: client.Username,
+			RoomId:   roomId,
+			Clients:  clientsList, 
+		},
+	}
 
 	defer func() {
 	
@@ -134,33 +173,6 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 		}
 
 		switch msg.Event {
-		case "JOINED":
-			// Create a new client
-			client := &ClientInfo{
-				Username: msg.Username,
-				Conn:     conn,
-			}
-
-			// If room doesn't exist, initialize it
-			if rooms[msg.RoomId] == nil {
-				rooms[msg.RoomId] = make(map[*ClientInfo]bool)
-			}
-
-			//add client in room
-			rooms[roomId][client] = true
-
-			log.Printf("✅ %s joined room %s\n", msg.Username, msg.RoomId)
-
-			clients = getClientByRoomId(msg.RoomId)
-			//pass the join msg in channel for broadcasting
-			messageChan <- BroadcastData{
-				Event: msg.Event,
-				Data: JoinData{
-					Username: msg.Username,
-					RoomId:   msg.RoomId,
-					Clients:  clients,
-				},
-			}
 
 		case "LEAVE":
 			clients, exists := rooms[msg.RoomId]
