@@ -146,24 +146,37 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer func() {
-	
-		delete(rooms[roomId], conn)
+
+		var clientsListAfterLeave []map[string]string
+		mu.Lock()
+		delete(rooms[roomId], client)
 		if len(rooms[roomId]) == 0 {
 			delete(rooms, roomId)
 			log.Println("Room deleted:", roomId)
+		} else {
+			clientsListAfterLeave = getClientsInRoom(roomId)
 		}
+		mu.Unlock()
+
 		conn.Close()
+		log.Printf("❌ %s left room %s\n", client.Username, roomId)
+
+		messageChan <- BroadcastMessage{
+			Event: "LEAVE",
+			Data: LeaveData{
+				Username: msg.Username,
+				RoomId: msg.RoomId,
+				Clients: clientsListAfterLeave,
+			},
+		}
+		
 	}()
 
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Println(err)
-			delete(rooms[roomId], conn)
-			if len(rooms[roomId]) == 0 {
-				delete(rooms, roomId)
-			}
-			break
+			break // break will invoke defer
 		}
 
 		var msg IncomingMessage
@@ -175,32 +188,8 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 		switch msg.Event {
 
 		case "LEAVE":
-			clients, exists := rooms[msg.RoomId]
-			if !exists {
-				log.Println("⚠️ Room not found:", msg.RoomId)
-				return
-			}
-
-			for client := range clients {
-				if client.Username == msg.Username && client.Conn == conn {
-					delete(clients, client)
-					log.Printf("❌ %s left room %s\n", client.Username, msg.RoomId)
-					if len(clients) == 0 {
-						delete(rooms, msg.RoomId)
-					}
-					clients = getClientByRoomId(msg.RoomId)
-					//send leave msg in channel for braocasting
-					messageChan <- BroadcastData{
-						Event: msg.Event,
-						Data: LeaveData{
-							Username: msg.Username,
-							RoomId:   msg.RoomId,
-							Clients:  clients,
-						},
-					}
-					return
-				}
-			}
+			break // Exit loop, triggers 'defer'
+			
 		case "EDITOR_CHANGE":
 			messageChan <- BroadcastData{
 				Event: msg.Event,
