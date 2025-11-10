@@ -10,7 +10,6 @@ import (
 	"sync"
 )
 
-
 type IncomingMessage struct {
 	Event    string `josn:"event"`
 	RoomId   string `josn:"roomId"`
@@ -19,14 +18,14 @@ type IncomingMessage struct {
 }
 
 type JoinData struct {
-	Username string `json:"username"`
-	RoomId   string `json:"roomId"`
+	Username string              `json:"username"`
+	RoomId   string              `json:"roomId"`
 	Clients  []map[string]string `json:"clients"`
 }
 
 type LeaveData struct {
-	Username string `json:"username"`
-	RoomId   string `json:"roomId"`
+	Username string              `json:"username"`
+	RoomId   string              `json:"roomId"`
 	Clients  []map[string]string `josn:"clients"`
 }
 
@@ -80,9 +79,9 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//wait untill first message and fisrt message should be join 
+	//wait untill first message and fisrt message should be join
 	_, message, err := conn.ReadMessage()
-	if err != nil{
+	if err != nil {
 		log.Println("Read Error (pre-join):", err)
 		conn.Close()
 		return
@@ -95,7 +94,7 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if msg.Event != "JOINED" || msg.Username == "" || msg.RoomId == ""{
+	if msg.Event != "JOINED" || msg.Username == "" || msg.RoomId == "" {
 		log.Printf("Invalid first message: Event=%s, User=%s, Room=%s", msg.Event, msg.Username, msg.RoomId)
 		conn.Close()
 		return
@@ -104,7 +103,7 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 	//Create the client struct and add them to the room
 	client := &ClientInfo{
 		Username: msg.Username,
-		Conn: conn,
+		Conn:     conn,
 	}
 
 	//apply lock so that not two people create same room
@@ -125,7 +124,7 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 		Data: JoinData{
 			Username: client.Username,
 			RoomId:   msg.RoomId,
-			Clients:  clientList, 
+			Clients:  clientList,
 		},
 	}
 
@@ -134,9 +133,11 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 		var clientsListAfterLeave []map[string]string
 		mu.Lock()
 		delete(rooms[msg.RoomId], client)
+		
 		if len(rooms[msg.RoomId]) == 0 {
 			delete(rooms, msg.RoomId)
 			log.Println("Room deleted:", msg.RoomId)
+			return // if room is not exist anymore then dont need to send the Leave event unnecessary
 		} else {
 			clientsListAfterLeave = getClientByRoomId(msg.RoomId)
 		}
@@ -149,11 +150,11 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 			Event: "LEAVE",
 			Data: LeaveData{
 				Username: msg.Username,
-				RoomId: msg.RoomId,
-				Clients: clientsListAfterLeave,
+				RoomId:   msg.RoomId,
+				Clients:  clientsListAfterLeave,
 			},
 		}
-		
+
 	}()
 
 	for {
@@ -173,7 +174,7 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 
 		case "LEAVE":
 			break // Exit loop, triggers 'defer'
-			
+
 		case "EDITOR_CHANGE":
 			messageChan <- BroadcastData{
 				Event: msg.Event,
