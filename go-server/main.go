@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"log"
@@ -17,11 +16,6 @@ type IncomingMessage struct {
 	RoomId   string `josn:"roomId"`
 	Username string `josn:"username"`
 	Code     string `json:"code,omitempty"`
-}
-
-type BroadcastMessage struct {
-	Event string      `josn:"event"`
-	Data  interface{} `json:"data"`
 }
 
 type JoinData struct {
@@ -71,23 +65,13 @@ func getClientByRoomId(roomId string) []map[string]string {
 	var clientList []map[string]string
 	for client := range rooms[roomId] {
 		clientList = append(clientList, map[string]string{
-			"username": client.Username
+			"username": client.Username,
 		})
 	}
 	return clientList
 }
 
 func handlerConnection(w http.ResponseWriter, r *http.Request) {
-
-	vars := mux.Vars(r)
-	roomId := vars["roomId"]
-	fmt.Println("RoomId------>",roomId)
-
-	if roomId == "" {
-		log.Println("Room Id is required to connect with Server.")
-		http.Error(w, "Room Id is required", http.StatusBadRequest)
-		return
-	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -111,7 +95,7 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if msg.Event != "JOINED" || msg.Username != "" || msg.RoomId != ""{
+	if msg.Event != "JOINED" || msg.Username == "" || msg.RoomId == ""{
 		log.Printf("Invalid first message: Event=%s, User=%s, Room=%s", msg.Event, msg.Username, msg.RoomId)
 		conn.Close()
 		return
@@ -130,18 +114,18 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	rooms[msg.RoomId][client] = true
 	//get the client while lock applied
-	clientList := getClientById(msg.RoomId)
+	clientList := getClientByRoomId(msg.RoomId)
 	mu.Unlock()
 
-	log.Printf("✅ %s joined room %s\n", client.Username, roomId)
+	log.Printf("✅ %s joined room %s\n", client.Username, msg.RoomId)
 
 	// Send the "JOINED" event to the broadcast channel
 	messageChan <- BroadcastData{
 		Event: "JOINED",
 		Data: JoinData{
 			Username: client.Username,
-			RoomId:   roomId,
-			Clients:  clientsList, 
+			RoomId:   msg.RoomId,
+			Clients:  clientList, 
 		},
 	}
 
@@ -149,19 +133,19 @@ func handlerConnection(w http.ResponseWriter, r *http.Request) {
 
 		var clientsListAfterLeave []map[string]string
 		mu.Lock()
-		delete(rooms[roomId], client)
-		if len(rooms[roomId]) == 0 {
-			delete(rooms, roomId)
-			log.Println("Room deleted:", roomId)
+		delete(rooms[msg.RoomId], client)
+		if len(rooms[msg.RoomId]) == 0 {
+			delete(rooms, msg.RoomId)
+			log.Println("Room deleted:", msg.RoomId)
 		} else {
-			clientsListAfterLeave = getClientsInRoom(roomId)
+			clientsListAfterLeave = getClientByRoomId(msg.RoomId)
 		}
 		mu.Unlock()
 
 		conn.Close()
-		log.Printf("❌ %s left room %s\n", client.Username, roomId)
+		log.Printf("❌ %s left room %s\n", client.Username, msg.RoomId)
 
-		messageChan <- BroadcastMessage{
+		messageChan <- BroadcastData{
 			Event: "LEAVE",
 			Data: LeaveData{
 				Username: msg.Username,
@@ -233,7 +217,7 @@ func broadcastMessage() {
 			continue
 		}
 
-		finalMessage := BroadcastMessage{
+		finalMessage := BroadcastData{
 			Event: broadcastMsg.Event,
 			Data:  eventData,
 		}
@@ -267,7 +251,7 @@ func broadcastMessage() {
 
 func main() {
 	r := mux.NewRouter()
-	r.HandleFunc("/ws/{roomId}", handlerConnection)
+	r.HandleFunc("/", handlerConnection)
 
 	// Start broadcaster
 	go broadcastMessage()
