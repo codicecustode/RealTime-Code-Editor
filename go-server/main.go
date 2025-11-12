@@ -6,7 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
-	//"strings"
+	"os"
 	"sync"
 )
 
@@ -47,7 +47,7 @@ type BroadcastData struct {
 
 var rooms = make(map[string]map[*ClientInfo]bool)
 
-var mu sync.Mutex
+var mu sync.RWMutex
 var messageChan = make(chan BroadcastData)
 
 //var rooms = make(map[string]map[*websocket.Conn]bool)
@@ -234,6 +234,7 @@ func broadcastMessage() {
 			log.Println("Room Id not eixst")
 			return
 		}
+		mu.RLock()
 		for client := range clientInfo {
 			err := client.Conn.WriteMessage(websocket.TextMessage, messageBytes)
 			if err != nil {
@@ -242,6 +243,7 @@ func broadcastMessage() {
 				delete(clientInfo, client)
 			}
 		}
+		mu.RUnlock()
 
 		if len(rooms[roomId]) == 0 {
 			delete(rooms, roomId)
@@ -256,7 +258,7 @@ func main() {
 
 	// Start broadcaster
 	go broadcastMessage()
-
+	log.Println("🆔 Process ID (PID):", os.Getpid())
 	log.Println("Server started on port 3000")
 	if err := http.ListenAndServe(":3000", r); err != nil {
 		log.Println("ListenAndServe error:", err)
