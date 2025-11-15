@@ -1,0 +1,39 @@
+# Node modules
+node_modules
+**/node_modules
+
+# Build output
+dist
+build
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs
+*.log
+
+# Local development
+.DS_Store
+.idea
+.vscode
+*.swp
+
+# Typescript cache
+*.tsbuildinfo
+
+# Temp files
+tmp
+temp
+*.tmp
+
+# Test related
+coverage
+*.spec.ts
+*.test.ts
